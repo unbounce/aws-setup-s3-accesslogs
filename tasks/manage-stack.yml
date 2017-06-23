@@ -1,0 +1,17 @@
+---
+- name: ensure cloudformation stack exists
+  cloudformation:
+    stack_name: "{{ config.project_name }}"
+    region: "{{ aws_region }}"
+    state: "{{ stack_state }}"
+    template: "{{ playbook_dir }}/cfn-template.yml"
+    stack_policy: "{{ playbook_dir }}/cfn-policy.json"
+    template_parameters:
+      ProjectName: "{{ config.project_name }}"
+      NamePrefix: "{{ name_prefix }}"
+    tags:
+      project: "{{ config.project_name }}"
+      environment: "{{ config.stack_env }}"
+      owner: "{{ config.project_owner }}"
+      lifetime: "{{ config.project_lifetime }}"
+

@@ -1,0 +1,81 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creates resources for S3 bucket access logs"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: "A unique name for the project"
+    Default: "access-logs"
+  NamePrefix:
+    Type: String
+    Description: "Prefix used on the S3 bucket for access logs"
+
+Resources:
+  LogBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      # access logs are region-locked, so we add the region to the name
+      BucketName: !Sub "${NamePrefix}-${ProjectName}-${AWS::Region}"
+      AccessControl: "LogDeliveryWrite"
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        # access logs for this bucket will be stored in the same bucket
+        LogFilePrefix: !Sub "${NamePrefix}-${ProjectName}-${AWS::Region}/"
+      LifecycleConfiguration:
+        Rules:
+          - Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 180
+              - StorageClass: GLACIER
+                TransitionInDays: 365
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Topic: !Ref AlertTopic
+            Event: "s3:ObjectRemoved:*" # nothing should ever be deleted
+
+  AlertTopicPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      Topics:
+        - !Ref AlertTopic
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: "allow s3 publishing to topic"
+            Effect: "Allow"
+            Principal:
+              Service: "s3.amazonaws.com"  
+            Action: "sns:Publish"
+            Resource: !Ref AlertTopic
+            Condition:
+              # prevents circular dep failure by naming bucket
+              ArnLike:
+                "aws:SourceArn": !Sub "arn:aws:s3:::${NamePrefix}-${ProjectName}-${AWS::Region}"
+
+  AlertTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "Access Logs Bucket Alerts"
+
+Outputs:
+  LogBucketName:
+    Value: !Ref LogBucket
+    Description: "Name of the bucket holding access logs for this region"
+    Export:
+      Name: !Sub "shared:${ProjectName}:log-bucket:name"
+  LogBucketArn:
+    Value: !GetAtt LogBucket.Arn
+    Description: "ARN of the bucket holding access logs for this region"
+    Export:
+      Name: !Sub "shared:${ProjectName}:log-bucket:arn"
+  AlertTopic:
+    Value: !Ref AlertTopic
+    Description: >
+      ARN of SNS topic used to notify on abnormal S3 events that happen to
+      the objects in the access logs bucket.
+    Export:
+      Name: !Sub "shared:${ProjectName}:sns-alerts:arn"
+

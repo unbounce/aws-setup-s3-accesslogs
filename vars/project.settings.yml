@@ -1,0 +1,29 @@
+---
+# This file contains the variables used to setup the CloudFormation
+# stack and its underlying resources.
+
+# The name of the project, which is used as a stack name and may be used
+# in other resource attributes.
+project_name: "access-logs"
+
+# The name of the team or department that owns this project and
+# infrastructure.  Usually for billing or troubleshooting purposes.
+project_owner: "infrastructure"
+
+# Determines how "short" or "long" this stack (and its underlying
+# resources) are expected to exist in this AWS account.
+#
+# Long = forever
+# Short = could be deleted at any time
+project_lifetime: "long"
+
+# A label given to the stack's environment
+# The priority/criticality of the stack's resources, which may be
+# different from the account where the stack is launched.
+stack_env: "{{ env_label|default('production') }}"
+
+# What AWS regions is this stack launched into?
+available_regions:
+  - us-east-1
+  - us-east-2
+
